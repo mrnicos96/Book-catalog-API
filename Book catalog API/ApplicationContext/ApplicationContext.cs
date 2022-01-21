@@ -15,13 +15,12 @@ namespace Book_catalog_API.ApplicationContext
 
         public DBContext()
         {
-            //Database.EnsureDeleted();
            Database.EnsureCreated();
         }
 
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
-            optionsBuilder.UseNpgsql("Host=localhost;Port=5432;Database=testdb4;Username=postgres;Password=12345");
+            optionsBuilder.UseNpgsql("Host=localhost;Port=5432;Database=BooKCatalogdb;Username=postgres;Password=12345");
         }
 
         public static async Task<IEnumerable<Book>> GetBooksAsync(DBContext dB) => await dB.Books.ToListAsync();
