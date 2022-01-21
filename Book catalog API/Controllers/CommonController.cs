@@ -28,28 +28,5 @@ namespace Book_catalog_API.Controllers
             await DBContext.CreateItemAsync(context, item);
             return Ok(item);
         }
-
-        // PUT / api
-        [HttpPut]
-        public async Task<ActionResult<Book>> UpdateBookAsync(Item item)
-        {
-            if (item == null)
-            {
-                return BadRequest();
-            }
-
-
-            if (!DBContext.CheakAnyBookInDB(context, item.BookName))
-            {
-                return NotFound();
-            }
-
-            if (!DBContext.CheakAnyAuthorInDB(context, item.AuthorName))
-            {
-                return NotFound();
-            }
-            await DBContext.UpdateBookAsync(context, item);
-            return Ok(item);
-        }
     }
 }

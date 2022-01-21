@@ -15,12 +15,13 @@ namespace Book_catalog_API.ApplicationContext
 
         public DBContext()
         {
-            Database.EnsureCreated();
+            //Database.EnsureDeleted();
+           Database.EnsureCreated();
         }
 
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
-            optionsBuilder.UseNpgsql("Host=localhost;Port=5432;Database=testdb;Username=postgres;Password=12345");
+            optionsBuilder.UseNpgsql("Host=localhost;Port=5432;Database=testdb4;Username=postgres;Password=12345");
         }
 
         public static async Task<IEnumerable<Book>> GetBooksAsync(DBContext dB) => await dB.Books.ToListAsync();
@@ -45,46 +46,64 @@ namespace Book_catalog_API.ApplicationContext
         public static async Task CreateItemAsync (DBContext dB, Item item)
         {
             Book book = new Book();
-            book.Id = new Guid();
-            book.Name = item.BookName;
-            await dB.Books.AddRangeAsync(book);
+            if (!CheakAnyBookInDB(dB, item.BookName))
+            {
+                book.Id = new Guid();
+                book.Name = item.BookName;
+                await dB.Books.AddRangeAsync(book);
+            }
+            else
+            {
+                book = await dB.Books.Where(x => x.Name == item.BookName).FirstOrDefaultAsync();
+            }
+            
 
             Author author = new Author();
-            author.Id = new Guid();
-            author.Name = item.AuthorName;
-            await dB.Authors.AddRangeAsync(author);
+            if (!CheakAnyAuthorInDB(dB, item.AuthorName))
+            {
+                author.Id = new Guid();
+                author.Name = item.AuthorName;
+                await dB.Authors.AddRangeAsync(author);
+            }
+            else
+            {
+                author = await dB.Authors.Where(x => x.Name == item.AuthorName).FirstOrDefaultAsync();
+            }
 
-            BookАuthor bookАuthor = new BookАuthor();
-            bookАuthor.IdBook = book.Id;
-            bookАuthor.IdАuthor = author.Id;
-            await dB.BooksАuthors.AddRangeAsync(bookАuthor);
+            
+            if (!(dB.BooksАuthors.Any(x => (x.IdBook == book.Id))) || !(dB.BooksАuthors.Any (x => (x.IdАuthor == author.Id))))
+            {
+                BookАuthor bookАuthor = new BookАuthor();
+                bookАuthor.IdBook = book.Id;
+                bookАuthor.IdАuthor = author.Id;
+                await dB.BooksАuthors.AddRangeAsync(bookАuthor);
+            }            
 
             await dB.SaveChangesAsync();
-            if (!dB.Books.Any(x => x.Id == book.Id))
-            {
-                ;
-            }
         }
 
         public static bool CheakAnyBookInDB(DBContext dB, string bookName) => dB.Books.Any(x => x.Name == bookName);
 
         public static bool CheakAnyAuthorInDB(DBContext dB, string authorName) => dB.Authors.Any(x => x.Name == authorName);
 
-        public static async Task UpdateBookAsync (DBContext dB, Item item)
+        public static bool CheakAnyBookInDB(DBContext dB, Book book) => dB.Books.Any(x => x.Id == book.Id);
+
+        public static bool CheakAnyAuthorInDB(DBContext dB, Author author) => dB.Authors.Any(x => x.Id == author.Id);
+
+        public static async Task UpdateAuthorAsync (DBContext dB, Author author)
         {
-            var existingBook = await dB.Books.FirstOrDefaultAsync(x => x.Name == item.BookName);
-            existingBook.Name = item.BookName;
-            dB.Books.Update(existingBook);
-            await dB.SaveChangesAsync();
-
-            if (!dB.Books.Any(x => x.Name == item.BookName))
-            {
-                ;
-            }
-
-            var existingAuthor = await dB.Authors.FirstOrDefaultAsync(x => x.Name == item.AuthorName);
-            existingAuthor.Name = item.AuthorName;
+            var existingAuthor = await dB.Authors.FirstOrDefaultAsync(x => x.Id == author.Id);
+            existingAuthor.Name = author.Name;
             dB.Authors.Update(existingAuthor);
+
+            await dB.SaveChangesAsync();
+        }
+
+        public static async Task UpdateBookAsync(DBContext dB, Book book)
+        {
+            var existingBook = await dB.Books.FirstOrDefaultAsync(x => x.Id == book.Id);
+            existingBook.Name = book.Name;
+            dB.Books.Update(existingBook);
 
             await dB.SaveChangesAsync();
         }
@@ -92,44 +111,47 @@ namespace Book_catalog_API.ApplicationContext
         public static async Task  DeleteBookAsync (DBContext dB, Book book)
         {
             dB.Books.Remove(book);
-            dB.SaveChanges();
+            await dB.SaveChangesAsync();
 
-            var idList = await dB.BooksАuthors.Where(x => x.IdBook == book.Id).ToListAsync();            
+            var idList = await dB.BooksАuthors.Where(x => x.IdBook == book.Id).ToListAsync();
             if (idList == null)
                 return;
+            dB.BooksАuthors.RemoveRange(idList);
+            await dB.SaveChangesAsync();
+
             var author = new Author();
             foreach (var id in idList)
             {
                 author = await dB.Authors.FirstOrDefaultAsync(x => x.Id == id.IdАuthor);
-                dB.Authors.Remove(author);
-                dB.SaveChanges();
+                if (author != null && dB.BooksАuthors.Where(x => x.IdАuthor == id.IdАuthor).ToList().Count == 0)
+                {
+                    dB.Authors.Remove(author);
+                    await dB.SaveChangesAsync();
+                }
             }
-
-            dB.RemoveRange(idList);
-            dB.SaveChanges();
         }
 
         public static async Task DeleteAuthorAsync(DBContext dB, Author author)
         {
             dB.Authors.Remove(author);
-            dB.SaveChanges();
+            await dB.SaveChangesAsync();
 
             var idList = await dB.BooksАuthors.Where(x => x.IdАuthor == author.Id).ToListAsync();
             if (idList == null)
                 return;
+            dB.BooksАuthors.RemoveRange(idList);
+            await dB.SaveChangesAsync();
+
             var book = new Book();
             foreach (var id in idList)
             {
                 book = await dB.Books.FirstOrDefaultAsync(x => x.Id == id.IdBook);
-                if (book != null)
+                if (book != null && dB.BooksАuthors.Where(x => x.IdBook == id.IdBook).ToList().Count == 0)
                 {
                     dB.Books.Remove(book);
-                    dB.SaveChanges();
+                    await dB.SaveChangesAsync();
                 }                
             }
-
-            dB.RemoveRange(idList);
-            dB.SaveChanges();
         }
     }
 }

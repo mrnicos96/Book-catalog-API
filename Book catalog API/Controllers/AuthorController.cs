@@ -24,11 +24,35 @@ namespace Book_catalog_API.Controllers
             return await DBContext.GetAuthorsAsync(context);
         }
 
+        // PUT / authors
+        [HttpPut]
+        public async Task<ActionResult<Author>> UpdateAsync(Author author)
+        {
+            if (author == null)
+            {
+                return BadRequest();
+            }
+
+
+            if (DBContext.CheakAnyAuthorInDB(context, author.Name))
+            {
+                return BadRequest();
+            }
+
+            if (!DBContext.CheakAnyAuthorInDB(context, author))
+            {
+                return NotFound();
+            }
+            await DBContext.UpdateAuthorAsync(context, author);
+
+            return Ok(author);
+        }
+
         // DELETE / authors 
         [HttpDelete]
         public async Task<ActionResult<Author>> DeleteAuthorAsync(Author author)
         {
-            if (DBContext.CheakAnyAuthorInDB(context, author.Name))
+            if (!DBContext.CheakAnyAuthorInDB(context, author.Name))
             {
                 return NotFound();
             }
